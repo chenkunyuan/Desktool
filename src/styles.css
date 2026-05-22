@@ -9,11 +9,8 @@ html, body {
   font-family: 'Consolas', 'Courier New', monospace;
   -webkit-app-region: drag;
   user-select: none;
-  cursor: grab;
+  cursor: move;
 }
-
-body:active { cursor: grabbing; }
-
 /* === Main Container === */
 #app {
   background: #08080f;
@@ -175,9 +172,15 @@ body:active { cursor: grabbing; }
   font-weight: bold;
   color: #00ff88;
   line-height: 1.2;
+  -webkit-app-region: no-drag;
 }
 
 #mem-value { color: #00ccff !important; }
+
+#net-value {
+  flex-direction: column;
+  gap: 1px;
+}
 
 .gauge-value .unit { font-size: 8px; }
 

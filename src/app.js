@@ -37,10 +37,12 @@ var el = {
 function loadState() {
   try {
     var saved = JSON.parse(localStorage.getItem('desktool_state'));
-    if (saved && saved.offWorkTime) {
+    if (saved && saved.offWorkTime && saved.offWorkTime > Date.now()) {
       state.offWorkTime = saved.offWorkTime;
       state.startTime = saved.startTime;
       state.clockedOut = saved.clockedOut || false;
+    } else {
+      localStorage.removeItem('desktool_state');
     }
   } catch (e) {}
 }
@@ -82,20 +84,6 @@ function getEmoji(remainingSeconds) {
     }
   }
   return { emoji: '😆', label: 'OFF WORK IN' };
-}
-
-function formatSpeed(bps) {
-  if (bps < 1000) return Math.round(bps) + ' B/s';
-  if (bps < 1000000) return (bps / 1000).toFixed(1) + ' KB/s';
-  if (bps < 1000000000) return (bps / 1000000).toFixed(1) + ' MB/s';
-  return (bps / 1000000000).toFixed(1) + ' GB/s';
-}
-
-function setGauge(fillEl, percent) {
-  var pct = Math.min(Math.max(percent, 0), 100);
-  var offset = CIRCUMFERENCE * (1 - pct / 100);
-  fillEl.setAttribute('stroke-dasharray', CIRCUMFERENCE);
-  fillEl.setAttribute('stroke-dashoffset', offset);
 }
 
 // === UI Update ===
@@ -168,56 +156,32 @@ function updateUI() {
 }
 
 // === Button Handler ===
-el.actionBtn.addEventListener('click', function (e) {
+el.actionBtn.addEventListener('pointerdown', function (e) {
+  e.preventDefault();
   e.stopPropagation();
   var now = Date.now();
 
   if (state.clockedOut || !state.offWorkTime) {
-    // Clock in
     state.startTime = now;
     state.offWorkTime = now + WORK_HOURS * 3600 * 1000;
     state.clockedOut = false;
     saveState();
     updateUI();
   } else {
-    // Clock out
     state.clockedOut = true;
     saveState();
     updateUI();
   }
 });
 
-// === Right-click context menu ===
+// === Right-click Exit (Tauri v1.8 API: __TAURI_INVOKE__) ===
 document.addEventListener('contextmenu', function (e) {
   e.preventDefault();
-  if (window.__TAURI__) {
-    window.__TAURI__.process.exit(0);
+  var invoke = window.__TAURI_INVOKE__;
+  if (invoke) {
+    invoke('plugin:process|exit', { code: 0 }).catch(function () {});
   }
 });
-
-// === Tauri Event Listener ===
-if (window.__TAURI__) {
-  window.__TAURI__.event.listen('metrics-updated', function (event) {
-    var m = event.payload;
-
-    // CPU
-    setGauge(el.cpuFill, m.cpu_percent);
-    el.cpuValue.innerHTML = m.cpu_percent.toFixed(0) + '<span class="unit">%</span>';
-
-    // Memory
-    setGauge(el.memFill, m.mem_percent);
-    el.memValue.innerHTML = m.mem_percent.toFixed(0) + '<span class="unit">%</span>';
-    el.memDetail.textContent = m.mem_used_gb.toFixed(1) + ' / ' + m.mem_total_gb.toFixed(1) + ' GB';
-
-    // Network
-    var netPct = Math.min((m.net_down_bps + m.net_up_bps) / 10000000 * 100, 100);
-    setGauge(el.netFill, netPct);
-    el.netValue.innerHTML =
-      '<span class="net-up">↑' + formatSpeed(m.net_up_bps) + '</span>' +
-      '<br>' +
-      '<span class="net-down">↓' + formatSpeed(m.net_down_bps) + '</span>';
-  });
-}
 
 // === Init Gauges ===
 el.cpuFill.setAttribute('stroke-dasharray', CIRCUMFERENCE);

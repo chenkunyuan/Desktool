@@ -21,6 +21,9 @@
       "all": false,
       "process": {
         "exit": true
+      },
+      "window": {
+        "all": true
       }
     },
     "windows": [
