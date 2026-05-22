@@ -1,16 +1,22 @@
-# Desktool — Cyberpunk Desktop Monitor Widget Design
+# Desktool — Cyberpunk Off-Work Countdown Widget Design
 
 ## Purpose
 
-A compact, always-on-top desktop widget for Windows that displays real-time system information (clock, CPU, memory, network speed) with a dark cyberpunk visual aesthetic: neon green/cyan glow, monospace typography, and circular SVG ring gauges.
+An always-on-top Windows desktop widget that displays:
+- **Off-work countdown** — counts down to off-work time (start time + 9 hours)
+- **Emoji mood indicator** — changes based on how close to off-work time
+- **Start/End work buttons** — clock in / clock out
+- **System metrics** — CPU, memory, network speed with circular SVG ring gauges
+
+Visual style: dark cyberpunk — neon green/cyan glow, monospace typography, deep black background.
 
 ## Technology Stack
 
 **Tauri + HTML/CSS/JS + Rust**
 
-- **Frontend**: Pure HTML/CSS/vanilla JS — no framework, no npm dependencies. SVG ring gauges, CSS glow effects, CSS transitions for animations.
-- **Backend**: Rust via Tauri. `sysinfo` crate for system metrics. `serde` + `serde_json` for IPC serialization.
-- **Runtime**: Windows WebView2 (built into Windows 11). Binary ~5MB, memory ~80MB.
+- **Frontend**: Pure HTML/CSS/vanilla JS — no framework, no npm dependencies.
+- **Backend**: Rust via Tauri. `sysinfo` crate for system metrics. `serde` for IPC serialization.
+- **Runtime**: Windows WebView2 (built into Windows 11). Binary ~5MB.
 
 ## Visual Design
 
@@ -19,59 +25,76 @@ A compact, always-on-top desktop widget for Windows that displays real-time syst
 | Element | Value |
 |---------|-------|
 | Background | Deep black `#08080F` |
-| Panel | Semi-transparent `rgba(0,255,136,0.03)` with `1px solid rgba(0,255,136,0.12)` border |
-| Primary accent | Neon green `#00FF88` — clock, CPU gauge, network gauge, glow shadows |
+| Border | `1px solid rgba(0,255,136,0.12)` |
+| Primary accent | Neon green `#00FF88` — countdown, CPU gauge, network gauge, [上班] button |
 | Secondary accent | Neon cyan `#00CCFF` — memory gauge |
+| Danger accent | Red `#FF6B6B` — overtime state, [下班] button |
 | Font | `'Consolas', 'Courier New', monospace` |
-| Glow | `text-shadow: 0 0 20px rgba(0,255,136,0.5)` for text; `drop-shadow(0 0 8px)` for SVG circles |
+| Glow | `text-shadow: 0 0 20px rgba(0,255,136,0.5)`; `drop-shadow(0 0 5px)` on SVG circles |
 
-### Layout
+### Layout (390 × 185 px)
 
 ```
-┌─────────────────────────────┐
-│        14:30:25             │  ← Clock 36px Bold, neon green, center
-│      2026-05-23 FRIDAY      │  ← Date 11px, dim
-│                             │
-│    (CPU)    (MEM)    (NET)  │  ← 3 SVG ring gauges, 70×70px each
-│     42%      62%     ↑1.2  │  ← Ring color: green / cyan / green
-│                      ↓5.8  │
-│     CPU      MEM      NET   │  ← Labels 10px
-│                             │
-│       9.9 / 15.9 GB         │  ← Memory detail, dim cyan
-│      ───────────────        │  ← Gradient divider
-│       DESKTOOL v1.0         │  ← Footer, very dim
-└─────────────────────────────┘
+┌──────────────────────────────────────────┐
+│  🙂  │  OFF WORK IN            [上班]    │  ← Emoji 42px + countdown text + button
+│      │  03:29:35                        │  ← 32px Bold, neon green
+│      │  ON 09:20 → OFF 18:20           │  ← 9px dim
+├──────────────────────────────────────────┤
+│     (CPU)      (MEM)      (NET)         │  ← 3 SVG ring gauges, 60×60px
+│      42%        62%        ↑1.2         │  ← Ring colors: green / cyan / green
+│                            ↓5.8         │
+│      CPU        MEM        NET          │  ← Labels 8px
+│              9.9 / 15.9 GB              │  ← Memory detail, dim cyan
+└──────────────────────────────────────────┘
 ```
 
-- Size: **~280 × 320 px** (fixed)
+- Size: **390 × 185 px** (fixed)
 - Border radius: **12px**
-- Padding: **24px horizontal, 22px vertical**
-- Gauge ring: **radius 30px, stroke 4px**, circumference **188.5**
+- Padding: **16px top/bottom, 24px left/right**
+- Gauge ring: **radius 26px, stroke 3px**, circumference **163.4**
+
+### Emoji State Machine
+
+| Emoji | Condition | Time Range (9h workday) |
+|-------|-----------|------------------------|
+| 😫 | > 4h remaining | Start → 5h elapsed |
+| 😐 | 2–4h remaining | 5h → 7h elapsed |
+| 🙂 | 1–2h remaining | 7h → 8h elapsed |
+| 😆 | < 1h remaining | 8h → 9h elapsed |
+| 😭 | Overtime (past off-work time) | > 9h elapsed (not yet clocked out) |
+| 🎉 | Clocked out | After clicking [下班] |
+
+### Button State Machine
+
+| State | Button Shown | Action |
+|-------|-------------|--------|
+| Initial / After clock-out | `[上班]` (green) | Records current time as start. Off-work = now + 9h. |
+| Counting down | None | Auto-tracked emoji stages |
+| Overtime (past off-work) | `[下班]` (red) | Transitions to 🎉 "已下班" state |
+
+### Countdown Logic
+
+- Off-work time = start time + 9 hours (540 minutes)
+- Start time persisted in localStorage → survives app restarts
+- Clicking [上班] again (next day) overwrites previous start time
 
 ### Animations
 
-- Ring gauge progress: `transition: stroke-dashoffset 0.4s ease` on SVG circle element
-- No animation on clock text (avoids jitter with monospace digits)
-
-### Gauge Ring Calculation
-
-```
-circumference = 2 * PI * 30 = 188.5
-dashoffset = circumference * (1 - percent / 100)
-```
+- Ring gauge progress: `transition: stroke-dashoffset 0.4s ease`
+- No animation on countdown text (monospace digits)
 
 ## Window Behavior
 
 | Property | Value |
 |----------|-------|
-| Frameless | Yes (`decorations: false` in tauri.conf.json) |
+| Frameless | Yes (`decorations: false`) |
 | Always on top | Yes (`alwaysOnTop: true`) |
 | Taskbar | Hidden (`skipTaskbar: true`) |
-| Resizable | No (fixed 280×320) |
-| Transparent background | Yes (HTML body background handles appearance) |
-| Initial position | Bottom-right corner of primary monitor, 20px margin |
-| Drag | Entire window surface draggable (CSS `-webkit-app-region: drag`) |
-| Context menu | Right-click → Exit |
+| Resizable | No (fixed 390×185) |
+| Transparent | Yes |
+| Position | Bottom-right, 20px margin |
+| Drag | Full surface draggable (`-webkit-app-region: drag`) |
+| Right-click | Exit option |
 
 ## Architecture
 
@@ -79,62 +102,58 @@ dashoffset = circumference * (1 - percent / 100)
 
 ```
 src/
-├── index.html    — Single-page structure: clock + 3 gauges + memory detail
-├── styles.css    — All styling: fonts, colors, glow, layout, animations, drag region
-└── app.js        — UI loop: listens for Tauri events, updates DOM, formats values
+├── index.html    — Structure: countdown row + gauge row
+├── styles.css    — All styling: glow, layout, animations, drag region
+└── app.js        — Countdown timer, emoji logic, button handlers, Tauri IPC listener
 ```
 
 **app.js responsibilities:**
-- Listen for `metrics-updated` event from Rust backend
-- Update clock (`setInterval` every 1s for smooth second hand, or via backend event)
-- Update gauge rings: recalculate `stroke-dashoffset` per ring
-- Format bytes to human-readable (B/s → KB/s → MB/s)
-- Handle right-click context menu → invoke Tauri exit command
-
-**Zero frontend dependencies.** CSS glow and SVG rings need no libraries.
+- Countdown: `setInterval` every 1s → calculate remaining time → update DOM + emoji
+- Button: [上班] records start time to localStorage; [下班] sets clocked-out state
+- Emoji: determine correct emoji based on remaining time / overtime / clocked-out
+- Gauges: listen for `metrics-updated` from Rust → update SVG rings
+- Format: bytes → KB/s / MB/s human-readable
+- Right-click: context menu → invoke Tauri exit
 
 ### Backend (`src-tauri/`)
 
 ```
 src-tauri/
-├── Cargo.toml       — dependencies: tauri, sysinfo, serde, serde_json
-├── tauri.conf.json  — window config (size, position, decorations, alwaysOnTop)
-└── src/main.rs      — system monitoring loop + Tauri commands
+├── Cargo.toml       — tauri, sysinfo, serde, serde_json
+├── tauri.conf.json  — window: 390×185, frameless, alwaysOnTop, skipTaskbar
+└── src/main.rs      — 1s system monitor loop + Tauri commands
 ```
 
 **main.rs responsibilities:**
-- Initialize `sysinfo::System` once
-- Spawn a background thread with 1-second interval
-- On each tick:
-  1. `System::refresh_cpu()` + read CPU usage %
-  2. `System::refresh_memory()` → total/used in bytes
-  3. `Networks::refresh()` → compute delta bytes/sec from previous tick
-  4. Serialize metrics as JSON via `serde`
-  5. Emit to frontend via `window.emit("metrics-updated", payload)`
-- Register a Tauri command for app exit
+- Background thread with 1-second interval
+- Each tick: `refresh_cpu()` → `refresh_memory()` → `Networks::refresh()`
+- Serialize `SystemMetrics` as JSON → emit `"metrics-updated"` to frontend
+- Tauri command: window exit, window positioning on startup
 
 ### Data Flow
 
 ```
-[Background Thread, 1s interval]
+[Rust Background Thread, 1s]
   sysinfo reads CPU/MEM/NET
         │
         ▼
-  SystemMetrics struct (serde serialized)
+  SystemMetrics (serde JSON)
         │
         ▼
-  window.emit("metrics-updated", json)
+  window.emit("metrics-updated", payload)
         │
         ▼
-[Frontend app.js]
-  event listener receives payload
-        │
-        ▼
-  Update DOM elements:
-  - Clock text content
-  - SVG circle stroke-dashoffset attributes
-  - Network speed text content
-  - Memory detail text content
+[app.js event listener]
+  Update SVG ring dashoffset
+  Update network speed text
+  Update memory detail text
+
+[app.js setInterval, 1s]
+  Read Date.now()
+  Calculate remaining = offWorkTime - now
+  Update countdown DOM
+  Update emoji based on remaining
+  Show/hide [上班]/[下班] buttons
 ```
 
 ## Data Model
@@ -151,58 +170,63 @@ struct SystemMetrics {
 }
 ```
 
-## Window Configuration (tauri.conf.json)
+Frontend state (in `localStorage`):
+```js
+{
+    startTime: 1716456000000,  // timestamp when [上班] clicked
+    clockedOut: false           // true after [下班] clicked
+}
+```
+
+## Window Configuration
 
 ```json
 {
   "windows": [{
     "title": "Desktool",
-    "width": 280,
-    "height": 320,
+    "width": 390,
+    "height": 185,
     "resizable": false,
     "decorations": false,
     "alwaysOnTop": true,
     "skipTaskbar": true,
-    "transparent": true,
-    "center": false,
-    "x": null, "y": null
+    "transparent": true
   }]
 }
 ```
 
-Initial position calculation done in Rust on startup: read primary monitor work area, position at (right - width - 20, bottom - height - 20).
-
-## Files to Create (8 core files)
+## Files to Create
 
 | # | File | Purpose |
 |---|------|---------|
-| 1 | `src/index.html` | HTML structure: clock, 3 gauge sections, footer |
-| 2 | `src/styles.css` | All CSS: layout, fonts, colors, glow effects, SVG ring styles, drag region |
-| 3 | `src/app.js` | Frontend logic: Tauri event listener, DOM updates, formatting, right-click menu |
-| 4 | `src-tauri/Cargo.toml` | Rust dependencies |
-| 5 | `src-tauri/tauri.conf.json` | Window config, app identifier |
-| 6 | `src-tauri/src/main.rs` | System monitor loop, Tauri commands, window positioning |
-| 7 | `src-tauri/icons/` | App icon (minimal — a neon green square/dot) |
-| 8 | `package.json` | Tauri frontend project metadata (minimal) |
+| 1 | `src/index.html` | HTML: emoji + countdown row, gauge row, buttons |
+| 2 | `src/styles.css` | CSS: layout, glow, SVG rings, drag, colors, animations |
+| 3 | `src/app.js` | Countdown timer, emoji FSM, button logic, Tauri events, formatting |
+| 4 | `src-tauri/Cargo.toml` | Rust: tauri, sysinfo, serde, serde_json |
+| 5 | `src-tauri/tauri.conf.json` | Window: 390×185, frameless, alwaysOnTop, skipTaskbar |
+| 6 | `src-tauri/src/main.rs` | System monitor loop (1s), Tauri commands, window positioning |
+| 7 | `src-tauri/icons/` | App icon |
+| 8 | `package.json` | Tauri project metadata |
 
 ## Verification
 
-1. `cargo tauri dev` — widget appears bottom-right, always on top
-2. Clock updates every second, digits don't jump (monospace)
-3. CPU gauge ring moves when launching a CPU-intensive task
-4. Memory gauge reflects Task Manager values
-5. Network speeds show activity when downloading a file
-6. Drag widget anywhere — cursor is `grab` over surface
-7. Right-click → Exit closes cleanly
-8. No taskbar icon, no Alt+Tab entry
-9. Window stays on top of all other windows
+1. `cargo tauri dev` → widget appears bottom-right, always on top
+2. Shows 🎉 "已下班" + [上班] button initially
+3. Click [上班] → countdown starts → emoji changes over time
+4. CPU/MEM/NET gauges update in real-time
+5. Past off-work time → 😭 + red countdown + [下班] button appears
+6. Click [下班] → 🎉 "已下班" + [上班] button returns
+7. Drag widget anywhere
+8. Right-click → Exit works
+9. Close + reopen → start time persists (localStorage)
+10. No taskbar icon
 
 ## Future (Out of Scope for v1)
 
+- Customizable work hours (not just 9h default)
 - Per-core CPU display
-- Click-through mode toggle
-- Opacity slider
-- Position persistence (save to local storage or config file)
-- Color theme variants (green-only, amber, red)
-- Network interface selector (WiFi vs Ethernet)
-- Compact mode toggle (show only clock + one gauge)
+- Click-through mode
+- Opacity adjustment
+- Position persistence
+- Color theme variants
+- Network interface selector
