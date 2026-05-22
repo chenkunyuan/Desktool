@@ -1,0 +1,42 @@
+{
+  "build": {
+    "distDir": "../src",
+    "devPath": "../src",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": ""
+  },
+  "tauri": {
+    "bundle": {
+      "active": true,
+      "identifier": "com.desktool.app",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ]
+    },
+    "allowlist": {
+      "all": false,
+      "process": {
+        "exit": true
+      }
+    },
+    "windows": [
+      {
+        "title": "Desktool",
+        "width": 390,
+        "height": 185,
+        "resizable": false,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "transparent": true,
+        "center": false,
+        "x": 0,
+        "y": 0
+      }
+    ]
+  }
+}
