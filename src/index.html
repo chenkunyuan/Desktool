@@ -1,2 +1,70 @@
 <!DOCTYPE html>
-<html><head><meta charset="UTF-8"></head><body></body></html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Desktool</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- Top Row: Emoji + Countdown + Button -->
+    <div id="countdown-row">
+      <div id="emoji">🎉</div>
+      <div id="countdown-text">
+        <div id="countdown-label">STATUS</div>
+        <div id="countdown-time">已 下 班</div>
+        <div id="countdown-sub"></div>
+      </div>
+      <button id="action-btn">上 班</button>
+    </div>
+
+    <!-- Bottom Row: 3 Circular Gauges -->
+    <div id="gauges-row">
+      <!-- CPU -->
+      <div class="gauge">
+        <div class="gauge-ring">
+          <svg viewBox="0 0 60 60">
+            <circle class="track" cx="30" cy="30" r="26"/>
+            <circle class="fill cpu-fill" id="cpu-fill" cx="30" cy="30" r="26"/>
+          </svg>
+          <div class="gauge-value" id="cpu-value">--<span class="unit">%</span></div>
+        </div>
+        <div class="gauge-label">CPU</div>
+      </div>
+
+      <!-- Memory -->
+      <div class="gauge">
+        <div class="gauge-ring">
+          <svg viewBox="0 0 60 60">
+            <circle class="track" cx="30" cy="30" r="26"/>
+            <circle class="fill mem-fill" id="mem-fill" cx="30" cy="30" r="26"/>
+          </svg>
+          <div class="gauge-value" id="mem-value">--<span class="unit">%</span></div>
+        </div>
+        <div class="gauge-label">MEM</div>
+      </div>
+
+      <!-- Network -->
+      <div class="gauge">
+        <div class="gauge-ring">
+          <svg viewBox="0 0 60 60">
+            <circle class="track" cx="30" cy="30" r="26"/>
+            <circle class="fill net-fill" id="net-fill" cx="30" cy="30" r="26"/>
+          </svg>
+          <div class="gauge-value" id="net-value">
+            <span class="net-up">--</span><br><span class="net-down">--</span>
+          </div>
+        </div>
+        <div class="gauge-label">NET</div>
+      </div>
+    </div>
+
+    <!-- Memory detail -->
+    <div id="mem-detail"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
