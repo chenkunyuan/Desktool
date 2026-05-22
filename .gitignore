@@ -1,0 +1,13 @@
+# Tauri
+src-tauri/target/
+src-tauri/icons/
+
+# Node
+node_modules/
+
+# Superpowers
+.superpowers/
+
+# OS
+.DS_Store
+Thumbs.db
